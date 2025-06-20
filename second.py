@@ -1,0 +1,126 @@
+import pandas as pd
+import numpy as np
+import math
+
+
+'''
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ОБРАБОТКА ПУСТЫХ СТРОК
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+'''
+
+# Загрузка данных из CSV-файла с указанием разделителя ';'
+# Файл содержит маркетинговые данные банка с различными характеристиками клиентов
+df = pd.read_csv('bank-additional-full.csv', delimiter=';')
+
+# Проверяем исходное количество строк в датафрейме
+initial_row_count = len(df)
+print(f"Исходное количество строк: {initial_row_count}")
+
+# Удаляем полностью пустые строки (где все значения NaN)
+# Параметр how='all' указывает удалять только строки, где ВСЕ значения отсутствуют
+df = df.dropna(how='all')
+
+# Проверяем количество строк после удаления пустых
+cleaned_row_count = len(df)
+print(f"Количество строк после удаления пустых: {cleaned_row_count}")
+print(f"Удалено строк: {initial_row_count - cleaned_row_count}")
+
+
+'''
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ОБРАБОТКА СТРОК <10%
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+'''
+
+# Сохранение исходной статистики для вывода
+initial_rows = len(df)
+
+# Замена специальных значений на NaN для корректной обработки пропусков
+# 'unknown' и 'nonexistent' трактуются как отсутствующие данные
+df.replace(['unknown', 'nonexistent'], np.nan, inplace=True)
+
+# Расчет порога для удаления строк: удаляем строки с >90% пустых ячеек
+# Для этого определяем минимальное количество заполненных ячеек для сохранения строки
+n_columns = len(df.columns)  # Общее количество столбцов в датафрейме
+min_filled = math.ceil(n_columns * 0.1)  # Минимум 10% заполненных ячеек
+
+# Фильтрация строк: сохраняем только строки с количеством заполненных ячеек >= min_filled
+# Используем параметр thresh в dropna() для установки минимального количества непустых значений
+df = df.dropna(thresh=min_filled)
+
+# Расчет и вывод статистики обработки
+final_rows = len(df)
+removed_rows = initial_rows - final_rows
+removed_percentage = (removed_rows / initial_rows) * 100
+
+print("="*50)
+print("РЕЗУЛЬТАТЫ ПРЕДОБРАБОТКИ ДАННЫХ")
+print("="*50)
+print(f"Исходное количество строк: {initial_rows}")
+print(f"Сохранено строк: {final_rows}")
+print(f"Удалено строк: {removed_rows} ({removed_percentage:.2f}% от общего объема)")
+print(f"Причина удаления: более 90% пустых ячеек в строке")
+print(f"Порог заполненности: минимум {min_filled} заполненных ячеек из {n_columns}")
+print("="*50)
+
+
+'''
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ПРОВЕРКА НА СТОЛБЦЫ С ОДНИМ ЗНАЧЕНИЕМ
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+'''
+
+# Создание словаря для группировки столбцов по их содержимому
+column_groups = {}
+duplicates_found = False
+
+# Проверка каждого столбца на уникальность
+print("="*50)
+print("ПРОВЕРКА НА ИДЕНТИЧНЫЕ СТОЛБЦЫ")
+print("="*50)
+
+# Сравнение столбцов попарно
+duplicate_pairs = []
+for i, col1 in enumerate(df.columns):
+    for j, col2 in enumerate(df.columns[i+1:], i+1):
+        if df[col1].equals(df[col2]):
+            duplicate_pairs.append((col1, col2))
+            duplicates_found = True
+
+# Вывод результатов
+if duplicates_found:
+    print("Обнаружены идентичные столбцы:")
+    for pair in duplicate_pairs:
+        print(f"- Столбец '{pair[0]}' полностью совпадает со столбцом '{pair[1]}'")
+else:
+    print("Идентичные столбцы не обнаружены")
+    
+print(f"Всего столбцов в датасете: {len(df.columns)}")
+print(f"Количество идентичных пар столбцов: {len(duplicate_pairs)}")
+print("="*50)
+
+
+'''
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+УДАЛЕНИЕ 16-20 СТОЛБЦОВ Т.К. ОНИ ДЕРЬМО
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+'''
+
+# Определение столбцов для удаления
+columns_to_drop = ['emp.var.rate', 'cons.price.idx', 'cons.conf.idx', 'euribor3m', 'nr.employed']
+
+# Проверка наличия столбцов перед удалением
+existing_columns = [col for col in columns_to_drop if col in df.columns]
+
+# Удаление столбцов
+if existing_columns:
+    print(f"Удаление столбцов: {', '.join(existing_columns)}")
+    df = df.drop(columns=existing_columns)
+    print(f"Обновленное количество столбцов: {len(df.columns)}")
+else:
+    print("Указанные столбцы не найдены в датафрейме")
+
+# Проверка результата
+print("\nПервые 3 строки после удаления:")
+print(df.head(3))
